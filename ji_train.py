@@ -15,14 +15,17 @@ from utils import AverageMeter, ProgressMeter, accuracy
 from resnet import ResNet
 from densenet import DenseNet
 
+
+SAVEPATH = './weight/'
+WEIGHTDECAY = 1e-4
+MOMENTUM = 0.9
+BATCHSIZE = 64
+LR = 0.1
+EPOCHS = 300
+PRINTFREQ = 50
+
+
 def main():
-    SAVEPATH = './weight/'
-    WEIGHTDECAY = 1e-4
-    MOMENTUM = 0.9
-    BATCHSIZE = 64
-    LR = 0.1
-    EPOCHS = 300
-    PRINTFREQ = 50
 
     model = DenseNet(depth=100, growthRate=12)
 
@@ -68,14 +71,12 @@ def main():
     
     val_dataset = torchvision.datasets.ImageFolder('./data/valid', transform=valid_transform)
     val_loader = DataLoader(val_dataset,
-                              batch_size=BATCHSIZE * 2, shuffle=False,
+                              batch_size=BATCHSIZE, shuffle=False,
                               num_workers=4, pin_memory=True)
 
     last_top1_acc = 0
     best_top1_val = 0
     for epoch in range(EPOCHS):
-        # learning rate scheduling
-        scheduler.step()
         print("\n----- epoch: {}, lr: {} -----".format(
             epoch, optimizer.param_groups[0]["lr"]))
 
@@ -87,6 +88,9 @@ def main():
         elapsed_time = time.time() - start_time
         print('==> {:.2f} seconds to train this epoch\n'.format(
             elapsed_time))
+
+        # learning rate scheduling
+        scheduler.step()
 
         # Save model each epoch
         if last_top1_acc > 80 and last_top1_val > best_top1_val:
