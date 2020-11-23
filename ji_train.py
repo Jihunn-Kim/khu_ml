@@ -34,9 +34,9 @@ def main():
     # model = DenseNet(depth=52, growthRate=24)
     # model = DenseNet(depth=28, growthRate=40)
     model = EfficientNet.from_name('efficientnet-b0')
-    inputs = torch.rand(1, 3, 32, 32)
-    outpus = model(inputs)
-    return
+    # inputs = torch.rand(1, 3, 32, 32)
+    # outpus = model(inputs)
+    # return
 
     ##### optimizer / learning rate scheduler / criterion #####
     optimizer = torch.optim.SGD(model.parameters(), lr=LR,
