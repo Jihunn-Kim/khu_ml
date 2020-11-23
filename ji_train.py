@@ -14,6 +14,7 @@ from torch.utils.data import Dataset, DataLoader
 from utils import AverageMeter, ProgressMeter, accuracy
 from resnet import ResNet
 from densenet import DenseNet
+from efficientnet import EfficientNet
 
 
 SAVEPATH = './weight/'
@@ -21,7 +22,7 @@ WEIGHTDECAY = 1e-4
 MOMENTUM = 0.9
 BATCHSIZE = 64
 LR = 0.1
-EPOCHS = 300
+EPOCHS = 200
 PRINTFREQ = 50
 VALID_THRESH = 90
 
@@ -29,14 +30,15 @@ VALID_THRESH = 90
 def main():
     os.makedirs(SAVEPATH, exist_ok=True)
 
-    model = ResNet(depth=20)
-    # model = DenseNet(depth=100, growthRate=12)
-
+    # model = ResNet(depth=20)
+    # model = DenseNet(depth=52, growthRate=24)
+    model = DenseNet(depth=28, growthRate=40)
+    # model = EfficientNet.from_name('efficientnet-b0')
 
     ##### optimizer / learning rate scheduler / criterion #####
     optimizer = torch.optim.SGD(model.parameters(), lr=LR,
                                 momentum=MOMENTUM, weight_decay=WEIGHTDECAY,
-                                nesterov=False)
+                                nesterov=True)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=EPOCHS, eta_min=0)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [100, 150],
     #                                                  gamma=0.1)
@@ -107,36 +109,28 @@ def main():
 
 
 def train(train_loader, epoch, model, optimizer, criterion):
-    data_time = AverageMeter('Data', ':6.3f')
     top1 = AverageMeter('Acc@1', ':6.2f')
-    progress = ProgressMeter(len(train_loader), data_time,
+    progress = ProgressMeter(len(train_loader),
                              top1, prefix="Epoch: [{}]".format(epoch))
     # switch to train mode
     model.train()
 
-    end = time.time()
-    for i, (input, target) in enumerate(train_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
-
-        input = input.cuda()
+    for i, (inputs, target) in enumerate(train_loader):
+        inputs = inputs.cuda()
         target = target.cuda()
 
         # compute output
-        output = model(input)
+        output = model(inputs)
         loss = criterion(output, target)
 
         # measure accuracy and record loss, accuracy 
         acc1 = accuracy(output, target, topk=(1, ))
-        top1.update(acc1[0].item(), input.size(0))
+        top1.update(acc1[0].item(), inputs.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
-        # measure elapsed time
-        end = time.time()
 
         if i % PRINTFREQ == 0:
             progress.print(i)
