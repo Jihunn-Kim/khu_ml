@@ -8,7 +8,7 @@ import torchvision
 from torchvision import datasets, models, transforms
 import time
 import os
-import pandas as pd
+# import pandas as pd
 import argparse
 from torch.utils.data import Dataset, DataLoader
 from utils import AverageMeter, ProgressMeter, accuracy
@@ -32,8 +32,11 @@ def main():
 
     # model = ResNet(depth=20)
     # model = DenseNet(depth=52, growthRate=24)
-    model = DenseNet(depth=28, growthRate=40)
-    # model = EfficientNet.from_name('efficientnet-b0')
+    # model = DenseNet(depth=28, growthRate=40)
+    model = EfficientNet.from_name('efficientnet-b0')
+    inputs = torch.rand(1, 3, 32, 32)
+    outpus = model(inputs)
+    return
 
     ##### optimizer / learning rate scheduler / criterion #####
     optimizer = torch.optim.SGD(model.parameters(), lr=LR,
