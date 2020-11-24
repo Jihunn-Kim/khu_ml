@@ -8,21 +8,23 @@ import torchvision
 from torchvision import datasets, models, transforms
 import time
 import os
-# import pandas as pd
+import pandas as pd
 import argparse
 from torch.utils.data import Dataset, DataLoader
 from utils import AverageMeter, ProgressMeter, accuracy
 from resnet import ResNet
 from densenet import DenseNet
 from efficientnet import EfficientNet
+from shake_shake import ShakeResNet
+from pyramidnet import PyramidNet
 
 
 SAVEPATH = './weight/'
-WEIGHTDECAY = 1e-4
+WEIGHTDECAY = 5e-4
 MOMENTUM = 0.9
-BATCHSIZE = 64
+BATCHSIZE = 256
 LR = 0.1
-EPOCHS = 200
+EPOCHS = 300
 PRINTFREQ = 50
 VALID_THRESH = 90
 
@@ -32,19 +34,33 @@ def main():
 
     # model = ResNet(depth=20)
     # model = DenseNet(depth=52, growthRate=24)
-    # model = DenseNet(depth=28, growthRate=40)
-    model = EfficientNet.from_name('efficientnet-b0')
-    # inputs = torch.rand(1, 3, 32, 32)
-    # outpus = model(inputs)
-    # return
+    # model = DenseNet(depth=28, growthRate=40) # 80%
+    # model = EfficientNet.from_name('efficientnet-b0') # 75% 모델 수정 실패
+    # model = ShakeResNet() # CosineAnnealingLR
+    model = PyramidNet(num_layers=18, alpha=48)
+
+    # model test
+    inputs = torch.rand((1, 3, 32, 32))
+    outputs = model(inputs)
+    print(outputs)
+    # end
+
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(f"Number of parameters: {pytorch_total_params}")
+    if int(pytorch_total_params) > 2000000:
+        print('Your model has the number of parameters more than 2 millions..')
+        return
 
     ##### optimizer / learning rate scheduler / criterion #####
-    optimizer = torch.optim.SGD(model.parameters(), lr=LR,
-                                momentum=MOMENTUM, weight_decay=WEIGHTDECAY,
-                                nesterov=True)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=EPOCHS, eta_min=0)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=LR,
+    #                             momentum=MOMENTUM, weight_decay=WEIGHTDECAY,
+    #                             nesterov=True)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=EPOCHS, eta_min=0)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [100, 150],
     #                                                  gamma=0.1)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005) # must remove scheduler.step()
+
     criterion = torch.nn.CrossEntropyLoss()
     ###########################################################
 
@@ -99,7 +115,7 @@ def main():
             elapsed_time))
 
         # learning rate scheduling
-        scheduler.step()
+        # scheduler.step()
 
         # Save model each epoch
         if last_top1_acc > VALID_THRESH and last_top1_val > best_top1_val:
@@ -144,31 +160,24 @@ def train(train_loader, epoch, model, optimizer, criterion):
 
 
 def valid(val_loader, epoch, model):
-    data_time = AverageMeter('Data', ':6.3f')
     top1 = AverageMeter('Acc@1', ':6.2f')
-    progress = ProgressMeter(len(val_loader), data_time,
+    progress = ProgressMeter(len(val_loader),
                              top1, prefix="Epoch: [{}]".format(epoch))
     # switch to eval mode
     model.eval()
 
-    end = time.time()
     with torch.no_grad():
-        for i, (input, target) in enumerate(val_loader):
-            # measure data loading time
-            data_time.update(time.time() - end)
+        for i, (inputs, target) in enumerate(val_loader):
 
-            input = input.cuda()
+            inputs = inputs.cuda()
             target = target.cuda()
 
             # compute output
-            output = model(input)
+            output = model(inputs)
 
             # measure accuracy and record loss, accuracy 
             acc1 = accuracy(output, target, topk=(1, ))
-            top1.update(acc1[0].item(), input.size(0))
-
-            # measure elapsed time
-            end = time.time()
+            top1.update(acc1[0].item(), inputs.size(0))
 
             if i % PRINTFREQ == 0:
                 progress.print(i)
