@@ -5,18 +5,19 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 import numpy as np
 import torchvision
-from torchvision import datasets, models, transforms
+from torchvision import datasets, transforms
 import time
 import os
-import pandas as pd
 import argparse
 from torch.utils.data import Dataset, DataLoader
+# from torch.optim.swa_utils import AveragedModel, SWALR
 from utils import AverageMeter, ProgressMeter, accuracy
 from resnet import ResNet
 from densenet import DenseNet
 from efficientnet import EfficientNet
 from shake_shake import ShakeResNet
 from pyramidnet import PyramidNet
+from pytorchcv.model_provider import get_model as ptcv_get_model
 
 
 SAVEPATH = './weight/'
@@ -37,7 +38,8 @@ def main():
     # model = DenseNet(depth=28, growthRate=40) # 80%
     # model = EfficientNet.from_name('efficientnet-b0') # 75% 모델 수정 실패
     # model = ShakeResNet() # CosineAnnealingLR
-    model = PyramidNet(num_layers=18, alpha=48)
+    # model = PyramidNet(num_layers=18, alpha=48)
+    model = ptcv_get_model("seresnet164bn_cifar10", pretrained=False)
 
     # model test
     inputs = torch.rand((1, 3, 32, 32))
