@@ -69,13 +69,6 @@ def main():
     model = model.cuda()
     criterion = criterion.cuda()
 
-    # Check number of parameters your model
-    pytorch_total_params = sum(p.numel() for p in model.parameters())
-    print(f"Number of parameters: {pytorch_total_params}")
-    if int(pytorch_total_params) > 2000000:
-        print('Your model has the number of parameters more than 2 millions..')
-        return
-
     normalize = transforms.Normalize(mean=[0.47889522, 0.47227842, 0.43047404],
                                      std=[0.24205776, 0.23828046, 0.25874835])
     train_transform = transforms.Compose([
