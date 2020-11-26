@@ -21,9 +21,9 @@ from pytorchcv.model_provider import get_model as ptcv_get_model
 
 
 SAVEPATH = './weight/'
-WEIGHTDECAY = 5e-4
+WEIGHTDECAY = 1e-4
 MOMENTUM = 0.9
-BATCHSIZE = 256
+BATCHSIZE = 128
 LR = 0.1
 EPOCHS = 300
 PRINTFREQ = 50
@@ -42,26 +42,20 @@ def main():
     model = ptcv_get_model("seresnet164bn_cifar10", pretrained=False)
 
     # model test
-    inputs = torch.rand((1, 3, 32, 32))
-    outputs = model(inputs)
-    print(outputs)
+    # inputs = torch.rand((1, 3, 32, 32))
+    # outputs = model(inputs)
+    # print(outputs)
     # end
-
-    pytorch_total_params = sum(p.numel() for p in model.parameters())
-    print(f"Number of parameters: {pytorch_total_params}")
-    if int(pytorch_total_params) > 2000000:
-        print('Your model has the number of parameters more than 2 millions..')
-        return
-
+    
     ##### optimizer / learning rate scheduler / criterion #####
-    # optimizer = torch.optim.SGD(model.parameters(), lr=LR,
-    #                             momentum=MOMENTUM, weight_decay=WEIGHTDECAY,
-    #                             nesterov=True)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=EPOCHS, eta_min=0)
+    optimizer = torch.optim.SGD(model.parameters(), lr=LR,
+                                momentum=MOMENTUM, weight_decay=WEIGHTDECAY,
+                                nesterov=True)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=EPOCHS, eta_min=0)
     # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [100, 150],
     #                                                  gamma=0.1)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005) # must remove scheduler.step()
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.005) # must remove scheduler.step()
 
     criterion = torch.nn.CrossEntropyLoss()
     ###########################################################
@@ -69,10 +63,17 @@ def main():
     model = model.cuda()
     criterion = criterion.cuda()
 
+    # Check number of parameters your model
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(f"Number of parameters: {pytorch_total_params}")
+    if int(pytorch_total_params) > 2000000:
+        print('Your model has the number of parameters more than 2 millions..')
+        return
+
     normalize = transforms.Normalize(mean=[0.47889522, 0.47227842, 0.43047404],
                                      std=[0.24205776, 0.23828046, 0.25874835])
     train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomCrop(32, padding=2),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         normalize
@@ -84,19 +85,28 @@ def main():
     ])
 
     train_dataset = torchvision.datasets.ImageFolder(
-        './data/train', transform=train_transform)
+        './train', transform=train_transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=BATCHSIZE, shuffle=True,
                               num_workers=4, pin_memory=True)
     
-    val_dataset = torchvision.datasets.ImageFolder('./data/valid', transform=valid_transform)
+    val_dataset = torchvision.datasets.ImageFolder('./valid', transform=valid_transform)
     val_loader = DataLoader(val_dataset,
                               batch_size=BATCHSIZE, shuffle=False,
                               num_workers=4, pin_memory=True)
 
+    start_epoch = 0
+    if os.path.isfile('weight/latest_checkpoint.pth'):
+        checkpoint = torch.load('weight/latest_checkpoint.pth')
+        start_epoch = checkpoint['epoch']
+        scheduler.load_state_dict(checkpoint['scheduler'])
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        print(start_epoch, 'load parameter')
+
     last_top1_acc = 0
     best_top1_val = 0
-    for epoch in range(EPOCHS):
+    for epoch in range(start_epoch, EPOCHS):
         print("\n----- epoch: {}, lr: {} -----".format(
             epoch, optimizer.param_groups[0]["lr"]))
 
@@ -110,7 +120,16 @@ def main():
             elapsed_time))
 
         # learning rate scheduling
-        # scheduler.step()
+        scheduler.step()
+
+        checkpoint = { 
+            'epoch': epoch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict()}
+        torch.save(checkpoint, 'weight/latest_checkpoint.pth')
+        if epoch % 10 == 0:
+            torch.save(checkpoint, 'weight/%d_checkpoint.pth' % epoch)
 
         # Save model each epoch
         if last_top1_acc > VALID_THRESH and last_top1_val > best_top1_val:
