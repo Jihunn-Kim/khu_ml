@@ -12,11 +12,6 @@ import argparse
 from torch.utils.data import Dataset, DataLoader
 # from torch.optim.swa_utils import AveragedModel, SWALR
 from utils import AverageMeter, ProgressMeter, accuracy
-from resnet import ResNet
-from densenet import DenseNet
-from efficientnet import EfficientNet
-from shake_shake import ShakeResNet
-from pyramidnet import PyramidNet
 from pytorchcv.model_provider import get_model as ptcv_get_model
 
 
@@ -27,25 +22,12 @@ BATCHSIZE = 128
 LR = 0.1
 EPOCHS = 300
 PRINTFREQ = 50
-VALID_THRESH = 85
 
 
 def main():
     os.makedirs(SAVEPATH, exist_ok=True)
 
-    # model = ResNet(depth=20)
-    # model = DenseNet(depth=52, growthRate=24)
-    # model = DenseNet(depth=28, growthRate=40) # 80%
-    # model = EfficientNet.from_name('efficientnet-b0') # 75% 모델 수정 실패
-    # model = ShakeResNet() # CosineAnnealingLR
-    # model = PyramidNet(num_layers=18, alpha=48)
     model = ptcv_get_model("seresnet164bn_cifar10", pretrained=False)
-
-    # model test
-    # inputs = torch.rand((1, 3, 32, 32))
-    # outputs = model(inputs)
-    # print(outputs)
-    # end
     
     ##### optimizer / learning rate scheduler / criterion #####
     optimizer = torch.optim.SGD(model.parameters(), lr=LR,
@@ -72,14 +54,10 @@ def main():
 
     normalize = transforms.Normalize(mean=[0.47889522, 0.47227842, 0.43047404],
                                      std=[0.24205776, 0.23828046, 0.25874835])
-    train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=2),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        normalize
-    ])
 
-    valid_transform = transforms.Compose([
+    train_transform = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         normalize
     ])
@@ -88,11 +66,6 @@ def main():
         './train', transform=train_transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=BATCHSIZE, shuffle=True,
-                              num_workers=4, pin_memory=True)
-    
-    val_dataset = torchvision.datasets.ImageFolder('./valid', transform=valid_transform)
-    val_loader = DataLoader(val_dataset,
-                              batch_size=BATCHSIZE, shuffle=False,
                               num_workers=4, pin_memory=True)
 
     start_epoch = 0
@@ -113,8 +86,6 @@ def main():
         # train for one epoch
         start_time = time.time()
         last_top1_acc = train(train_loader, epoch, model, optimizer, criterion)
-        if last_top1_acc > VALID_THRESH:
-            last_top1_val = valid(val_loader, epoch, model)
         elapsed_time = time.time() - start_time
         print('==> {:.2f} seconds to train this epoch\n'.format(
             elapsed_time))
@@ -123,18 +94,13 @@ def main():
         scheduler.step()
 
         checkpoint = { 
-            'epoch': epoch,
+            'epoch': epoch + 1,
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'scheduler': scheduler.state_dict()}
         torch.save(checkpoint, 'weight/latest_checkpoint.pth')
         if epoch % 10 == 0:
             torch.save(checkpoint, 'weight/%d_checkpoint.pth' % epoch)
-
-        # Save model each epoch
-        if last_top1_acc > VALID_THRESH and last_top1_val > best_top1_val:
-            best_top1_val = last_top1_val
-            torch.save(model.state_dict(), SAVEPATH + 'model_weight.pth')
 
     print(f"Best Top-1 Accuracy: {best_top1_val}")
     print(f"Number of parameters: {pytorch_total_params}")
@@ -167,34 +133,6 @@ def train(train_loader, epoch, model, optimizer, criterion):
 
         if i % PRINTFREQ == 0:
             progress.print(i)
-
-    print('=> Acc@1 {top1.avg:.3f}'
-          .format(top1=top1))
-    return top1.avg
-
-
-def valid(val_loader, epoch, model):
-    top1 = AverageMeter('Acc@1', ':6.2f')
-    progress = ProgressMeter(len(val_loader),
-                             top1, prefix="Epoch: [{}]".format(epoch))
-    # switch to eval mode
-    model.eval()
-
-    with torch.no_grad():
-        for i, (inputs, target) in enumerate(val_loader):
-
-            inputs = inputs.cuda()
-            target = target.cuda()
-
-            # compute output
-            output = model(inputs)
-
-            # measure accuracy and record loss, accuracy 
-            acc1 = accuracy(output, target, topk=(1, ))
-            top1.update(acc1[0].item(), inputs.size(0))
-
-            if i % PRINTFREQ == 0:
-                progress.print(i)
 
     print('=> Acc@1 {top1.avg:.3f}'
           .format(top1=top1))
