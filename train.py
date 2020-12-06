@@ -137,7 +137,11 @@ def main():
         print('==> {:.2f} seconds to train this epoch\n'.format(elapsed_time))
 
         # learning rate scheduling
-        scheduler.step()
+        if SWA and epoch > SWA_START:
+            swa_model.update_parameters(model)
+            swa_scheduler.step()
+        else:
+            scheduler.step()
 
         if SWA:
             checkpoint = { 

@@ -96,7 +96,7 @@ class ResBottleneck(nn.Module):
                  dilation=1,
                  conv1_stride=False,
                  bottleneck_factor=4,
-                 activation=activation):
+                 activation='mish'):
         super(ResBottleneck, self).__init__()
         mid_channels = out_channels // bottleneck_factor
 
@@ -147,7 +147,7 @@ class ResBlock(nn.Module):
                  stride,
                  bias=False,
                  use_bn=True,
-                 activation=activation):
+                 activation='mish'):
         super(ResBlock, self).__init__()
         self.conv1 = conv3x3_block(
             in_channels=in_channels,
@@ -283,7 +283,11 @@ class ConvBlock(nn.Module):
                  bn_eps=1e-5,
                  activation='mish'):
         super(ConvBlock, self).__init__()
-        self.activate = get_activation_layer(activation)
+        if activation == None:
+            self.activate = False
+        else:
+            self.activate = True 
+            self.activ = get_activation_layer(activation)
         self.use_bn = use_bn
         self.use_pad = (isinstance(padding, (list, tuple)) and (len(padding) == 4))
 
