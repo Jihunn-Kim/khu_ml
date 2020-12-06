@@ -132,7 +132,7 @@ def main():
 
         # train for one epoch
         start_time = time.time()
-        train(train_loader, epoch, model, optimizer, criterion)
+        train(train_loader, epoch, model, optimizer, criterion, device)
         elapsed_time = time.time() - start_time
         print('==> {:.2f} seconds to train this epoch\n'.format(elapsed_time))
 
@@ -162,7 +162,7 @@ def main():
             torch.save(checkpoint, os.path.join(SAVEPATH, '%d_checkpoint.pth' % epoch))
 
 
-def train(train_loader, epoch, model, optimizer, criterion):
+def train(train_loader, epoch, model, optimizer, criterion, device):
     top1 = AverageMeter('Acc@1', ':6.2f')
     progress = ProgressMeter(len(train_loader),
                              top1, prefix="Epoch: [{}]".format(epoch))
@@ -170,8 +170,8 @@ def train(train_loader, epoch, model, optimizer, criterion):
     model.train()
 
     for i, (inputs, target) in enumerate(train_loader):
-        inputs = inputs.cuda()
-        target = target.cuda()
+        inputs = inputs.to(device)
+        target = target.to(device)
 
         # compute output
         output = model(inputs)
