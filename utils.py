@@ -1,4 +1,43 @@
 import torch
+import torch.nn as nn
+
+
+class Cutout:
+    def __init__(self, size=8, p=0.5):
+        self.size = size
+        self.half_size = size // 2
+        self.p = p
+
+    def __call__(self, image):
+        if torch.rand([1]).item() > self.p:
+            return image
+
+        left = torch.randint(-self.half_size, image.size(1) - self.half_size, [1]).item()
+        top = torch.randint(-self.half_size, image.size(2) - self.half_size, [1]).item()
+        right = min(image.size(1), left + self.size)
+        bottom = min(image.size(2), top + self.size)
+
+        image[:, max(0, left): right, max(0, top): bottom] = 0
+        return image
+
+
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes, smoothing=0.0, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
+
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            # true_dist = pred.data.clone()
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
 
 class AverageMeter(object):
     r"""Computes and stores the average and current value
