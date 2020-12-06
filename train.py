@@ -26,7 +26,7 @@ PRINTFREQ = 100
 
 LABELSMOOTH = False
 
-SWA = True
+SWA = False
 SWA_LR = 0.02
 SWA_START = 200
 
