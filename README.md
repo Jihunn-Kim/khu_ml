@@ -1,5 +1,6 @@
 # khu_ml
 - SGD(LR=0.1), MOMENTUM=0.9, WEIGHTDECAY=1e-4, BATCHSIZE=128, EPOCHS=300
+- SWA(LR=0.2) SWA Start=200
 - RandomCrop(32, padding=4), RandomHorizontalFlip, Cutout
 - LABELSMOOTH, Mish Activation
 - train, valid 데이터 전부 사용
