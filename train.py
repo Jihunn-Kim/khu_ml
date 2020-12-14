@@ -8,11 +8,9 @@ import torchvision
 from torchvision import datasets, transforms
 import time
 import os
-import argparse
 from torch.utils.data import Dataset, DataLoader
 from torch.optim.swa_utils import AveragedModel, SWALR
 from utils import AverageMeter, ProgressMeter, accuracy, LabelSmoothingLoss, Cutout
-# from pytorchcv.model_provider import get_model as ptcv_get_model
 from seresnet import get_seresnet_cifar
 
 
@@ -24,16 +22,16 @@ LR = 0.1
 EPOCHS = 300
 PRINTFREQ = 100
 
-LABELSMOOTH = False
+LABELSMOOTH = True
 
-SWA = False
+SWA = True
 SWA_LR = 0.02
 SWA_START = 200
 
 CUTOUT = True
 CUTOUTSIZE = 8
 
-ACTIVATION = 'mish' # 'relu', 'swish'
+ACTIVATION = 'mish' # 'relu', 'swish', 'mish'
 
 def main():
     os.makedirs(SAVEPATH, exist_ok=True)
@@ -55,9 +53,9 @@ def main():
     print('Cutout augmentation:', CUTOUT)
     if CUTOUT:
         print('Cutout size:', CUTOUTSIZE)
+    print('Activation:', ACTIVATION)
 
     # get model
-    # model = ptcv_get_model("seresnet164bn_cifar10", pretrained=False)
     model = get_seresnet_cifar(activation=ACTIVATION)
 
     # get loss function
@@ -108,7 +106,7 @@ def main():
             normalize
         ])
 
-    train_dataset = torchvision.datasets.ImageFolder('./train', transform=train_transform)
+    train_dataset = torchvision.datasets.ImageFolder('/content/train', transform=train_transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=BATCHSIZE, shuffle=True,
                               num_workers=4, pin_memory=True)

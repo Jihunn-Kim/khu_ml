@@ -22,6 +22,8 @@ class SEResUnit(nn.Module):
         Whether to use a bottleneck or simple block in units.
     conv1_stride : bool
         Whether to use stride in the first or the second convolution layer of the block.
+    activation : str, default 'mish'
+        Activation function
     """
     def __init__(self,
                  in_channels,
@@ -87,6 +89,8 @@ class ResBottleneck(nn.Module):
         Whether to use stride in the first or the second convolution layer of the block.
     bottleneck_factor : int, default 4
         Bottleneck factor.
+    activation : str, default 'mish'
+        Activation function
     """
     def __init__(self,
                  in_channels,
@@ -140,6 +144,8 @@ class ResBlock(nn.Module):
         Whether the layer uses a bias vector.
     use_bn : bool, default True
         Whether to use BatchNorm layer.
+    activation : str, default 'mish'
+        Activation function
     """
     def __init__(self,
                  in_channels,
@@ -186,9 +192,9 @@ class SEBlock(nn.Module):
         Whether to round middle channel number (make divisible by 8).
     use_conv : bool, default True
         Whether to convolutional layers instead of fully-connected ones.
-    activation : function, or str, or nn.Module, default 'relu'
+    activation : function, or str, or nn.Module, default 'mish'
         Activation function after the first convolution.
-    out_activation : function, or str, or nn.Module, default 'sigmoid'
+    out_activation : str, default 'sigmoid'
         Activation function after the last convolution.
     """
     def __init__(self,
@@ -267,8 +273,8 @@ class ConvBlock(nn.Module):
         Whether to use BatchNorm layer.
     bn_eps : float, default 1e-5
         Small float added to variance in Batch norm.
-    activation : function or str or None, default nn.ReLU(inplace=True)
-        Activation function or name of activation function.
+    activation : str or None, default 'mish'
+        Name of activation function.
     """
     def __init__(self,
                  in_channels,
@@ -352,8 +358,8 @@ def conv3x3_block(in_channels,
         Whether to use BatchNorm layer.
     bn_eps : float, default 1e-5
         Small float added to variance in Batch norm.
-    activation : function or str or None, default nn.ReLU(inplace=True)
-        Activation function or name of activation function.
+    activation : str or None, default 'mish'
+        Name of activation function.
     """
     return ConvBlock(
         in_channels=in_channels,
@@ -399,8 +405,8 @@ def conv1x1_block(in_channels,
         Whether to use BatchNorm layer.
     bn_eps : float, default 1e-5
         Small float added to variance in Batch norm.
-    activation : function or str or None, default nn.ReLU(inplace=True)
-        Activation function or name of activation function.
+    activation : function or str or None, default 'mish'
+        Name of activation function.
     """
     return ConvBlock(
         in_channels=in_channels,
@@ -509,11 +515,13 @@ class Swish(nn.Module):
 
 
 class Mish(nn.Module):
+    """
+    Mish: A Self Regularized Non-Monotonic Neural Activation Function, https://arxiv.org/abs/1908.08681v1
+    """
     def __init__(self):
         super().__init__()
 
     def forward(self, x):
-        #inlining this saves 1 second per epoch (V100 GPU) vs having a temp x and then returning x(!)
         return x *( torch.tanh(F.softplus(x)))
 
 
@@ -588,6 +596,8 @@ def get_seresnet_cifar(num_classes=10,
         Number of blocks.
     bottleneck : bool
         Whether to use a bottleneck or simple block in units.
+    activation : str
+        Activation function
     """
     assert (num_classes in [10, 100])
 
